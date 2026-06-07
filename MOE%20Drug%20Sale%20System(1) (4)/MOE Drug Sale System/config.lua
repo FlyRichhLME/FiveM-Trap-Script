@@ -3,7 +3,7 @@ Config = {}
 -- Command to open/close trap mode
 Config.Command = 'trap'
 Config.OwnerToggleCommand = 'trapstatus'
-Config.RequiredItem = 'trapphone'
+Config.RequiredItem = 'brokenphone'
 
 -- UI + vehicle rules
 Config.UsePhoneUI = true
