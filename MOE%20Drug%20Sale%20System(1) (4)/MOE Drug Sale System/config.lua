@@ -1,28 +1,35 @@
 Config = {}
 
+-- Command to open/close trap mode
 Config.Command = 'trap'
 Config.OwnerToggleCommand = 'trapstatus'
 Config.RequiredItem = 'trapphone'
 
+-- UI + vehicle rules
 Config.UsePhoneUI = true
 Config.DriverOnly = true
 Config.RequirePassengerSeatOpen = true
 
+-- Customer behavior
 Config.CustomerDelay = { min = 6000, max = 12000 }
 Config.EnterDistance = 8.0
 Config.SpawnDistance = 35.0
 Config.CustomerTimeout = 45000
 
+-- Sale progress
 Config.ProgressTime = 6500
 Config.ProgressLabel = 'Making trap sale...'
 Config.SaleCooldown = 15000
 
+-- Payment
 Config.PayAccount = 'cash'
 Config.UseMarkedBills = false
 Config.MarkedBillsItem = 'markedbills'
 
-Config.AllowNpcRobbing = true
+-- Disable NPC robbing (your script has no robbery logic)
+Config.AllowNpcRobbing = false
 
+-- Customer interest system
 Config.CustomerInterest = {
     enabled = true,
     buyChance = 75,
@@ -30,6 +37,7 @@ Config.CustomerInterest = {
     notInterestedMessage = 'Customer is not interested in what you have.'
 }
 
+-- Bulk delivery
 Config.BulkDelivery = {
     enabled = true,
     minItems = 5,
@@ -41,6 +49,7 @@ Config.BulkDelivery = {
     useInterestChance = true
 }
 
+-- Reputation system
 Config.Reputation = {
     enabled = true,
     max = 1000,
@@ -56,6 +65,7 @@ Config.Reputation = {
     }
 }
 
+-- High value buyers
 Config.HighValueBuyers = {
     enabled = true,
     chance = 5,
@@ -68,12 +78,14 @@ Config.HighValueBuyers = {
     }
 }
 
+-- Robbery system (disabled because your client.lua has no robbery logic)
 Config.Robbery = {
-    enabled = true,
+    enabled = false,
     chance = 10,
     minRepToAvoid = 400
 }
 
+-- Delivery system
 Config.Delivery = {
     enabled = true,
     locations = {
@@ -89,6 +101,7 @@ Config.Delivery = {
     }
 }
 
+-- Custom drugs
 Config.CustomDrugs = {
     ['weed_bag'] = {
         label = 'Weed Bag',
@@ -116,16 +129,18 @@ Config.CustomDrugs = {
     },
 }
 
+-- Only allow items listed above
 Config.AllowAnyDrugItem = false
 
+-- Default fallback price
 Config.DefaultDrugPrice = {
     min = 125,
     max = 700,
     bulkMultiplier = 1.0
 }
 
+-- Blocked items (trap phone MUST NOT be blocked)
 Config.BlockedItems = {
-    ['trapphone'] = true,
     ['phone'] = true,
     ['radio'] = true,
     ['cash'] = true,
@@ -135,12 +150,14 @@ Config.BlockedItems = {
     ['weapon_smg'] = true
 }
 
+-- Trap owners (optional)
 Config.Owners = {
     citizenids = {},
     jobs = {},
     gangs = {}
 }
 
+-- Customer ped models
 Config.CustomerPeds = {
     'a_m_y_stwhi_02',
     'a_m_y_hipster_01',

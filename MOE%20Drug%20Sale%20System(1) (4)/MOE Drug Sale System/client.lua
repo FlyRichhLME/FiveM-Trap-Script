@@ -98,10 +98,6 @@ local function StartDeal(customerPed, playerVeh)
             CustomerLeave(customerPed, playerVeh)
             currentCustomer = nil
             saleBusy = false
-            Wait(Config.SaleCooldown)
-            trapActive = false
-            currentMode = 'single'
-            Notify('Trap phone is ready again.', 'primary')
             return
         end
 
@@ -136,10 +132,6 @@ local function StartDeal(customerPed, playerVeh)
                 CustomerLeave(customerPed, playerVeh)
                 currentCustomer = nil
                 saleBusy = false
-                Wait(Config.BulkDelivery.cooldown)
-                trapActive = false
-                currentMode = 'single'
-                Notify('Trap phone is ready again.', 'primary')
             end)
             return
         end
@@ -172,15 +164,13 @@ local function StartDeal(customerPed, playerVeh)
             CustomerLeave(customerPed, playerVeh)
             currentCustomer = nil
             saleBusy = false
-            Wait(Config.SaleCooldown)
-            trapActive = false
-            currentMode = 'single'
-            Notify('Trap phone is ready again.', 'primary')
         end)
     end, currentMode)
 end
 
 local function SpawnCustomer()
+    if not trapActive then return end
+
     local playerPed = PlayerPedId()
     local playerVeh = GetVehiclePedIsIn(playerPed, false)
 
@@ -246,35 +236,41 @@ local function SpawnCustomer()
 end
 
 local function StartTrap(mode)
-    if phoneOpen then CloseTrapPhone() end
-    if trapActive or saleBusy then Notify('Trap sale already active.', 'error') return end
+    if trapActive then return end
 
+    trapActive = true
     currentMode = mode or 'single'
 
-    local playerPed = PlayerPedId()
-    local playerVeh = GetVehiclePedIsIn(playerPed, false)
+    if phoneOpen then CloseTrapPhone() end
 
-    if playerVeh == 0 then Notify('Get in a vehicle first.', 'error') ResetTrapState() return end
-    if Config.DriverOnly and GetPedInVehicleSeat(playerVeh, -1) ~= playerPed then Notify('You must be the driver.', 'error') ResetTrapState() return end
-    if Config.RequirePassengerSeatOpen and GetPedInVehicleSeat(playerVeh, 0) ~= 0 then Notify('Passenger seat must be empty.', 'error') ResetTrapState() return end
+    Notify('Trap phone active. Customers incoming...', 'primary')
 
-    QBCore.Functions.TriggerCallback('moe-drugsale:server:CanStartTrap', function(canStart, reason)
-        if not canStart then
-            Notify(reason or 'You cannot start trap sales.', 'error')
-            ResetTrapState()
-            return
+    CreateThread(function()
+        while trapActive do
+            Wait(math.random(Config.CustomerDelay.min, Config.CustomerDelay.max))
+            if trapActive then
+                SpawnCustomer()
+            end
         end
-
-        trapActive = true
-        Notify(currentMode == 'bulk' and 'Bulk delivery request sent. Buyer incoming...' or 'Trap phone active. Customer incoming...', 'primary')
-
-        Wait(math.random(Config.CustomerDelay.min, Config.CustomerDelay.max))
-        SpawnCustomer()
-    end, currentMode)
+    end)
 end
 
+-- 🔥 NEW: /trap toggle ON/OFF
 RegisterCommand(Config.Command, function()
-    if Config.UsePhoneUI then OpenTrapPhone() else StartTrap('single') end
+    if trapActive then
+        trapActive = false
+        saleBusy = false
+        currentCustomer = nil
+        Notify('Trap phone disabled.', 'error')
+        CloseTrapPhone()
+        return
+    end
+
+    if Config.UsePhoneUI then 
+        OpenTrapPhone()
+    else 
+        StartTrap('single')
+    end
 end, false)
 
 RegisterNetEvent('moe-drugsale:client:UseTrapPhone', function()
