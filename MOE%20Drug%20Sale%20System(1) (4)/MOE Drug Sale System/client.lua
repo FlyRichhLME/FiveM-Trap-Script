@@ -303,7 +303,7 @@ RegisterNUICallback('checkStatus', function(_, cb)
     end)
 end)
 
--- Delivery system
+-- Delivery system (UPDATED: Player must exit vehicle + NPC interaction)
 RegisterNetEvent('moe-drugsale:client:BeginDelivery', function(loc)
     currentDelivery = loc
 
@@ -323,7 +323,7 @@ RegisterNetEvent('moe-drugsale:client:BeginDelivery', function(loc)
     AddTextComponentString(Config.Delivery.blip.label)
     EndTextCommandSetBlipName()
 
-    Notify('Delivery location pinged on your GPS.', 'primary')
+    Notify('Drive to the delivery location.', 'primary')
 
     -- Spawn delivery NPC
     local model = 'a_m_m_business_01'
@@ -335,23 +335,32 @@ RegisterNetEvent('moe-drugsale:client:BeginDelivery', function(loc)
     CreateThread(function()
         while currentDelivery do
             Wait(1000)
-            local coords = GetEntityCoords(PlayerPedId())
+
+            local playerPed = PlayerPedId()
+            local coords = GetEntityCoords(playerPed)
             local dist = #(coords - vector3(loc.x, loc.y, loc.z))
 
-            if dist <= 5.0 then
+            -- Must exit vehicle
+            if dist <= 20.0 and IsPedInAnyVehicle(playerPed, false) then
+                Notify('Exit your vehicle to complete the delivery.', 'error')
+            end
+
+            -- Player must be on foot and close to NPC
+            if dist <= 3.0 and not IsPedInAnyVehicle(playerPed, false) then
+
                 local success = lib.progressCircle({
                     duration = 8000,
-                    label = 'Meeting buyer and completing delivery...',
+                    label = 'Handing off bulk package...',
                     position = 'bottom',
                     useWhileDead = false,
                     canCancel = false,
-                    disable = { move = false, car = true, combat = true },
+                    disable = { move = true, car = true, combat = true },
                     anim = { dict = 'mp_common', clip = 'givetake1_a' }
                 })
 
                 if success then
                     TriggerServerEvent('moe-drugsale:server:CompleteDelivery')
-                    Notify('Delivery completed.', 'success')
+                    Notify('Bulk delivery completed.', 'success')
                 else
                     Notify('Delivery cancelled.', 'error')
                 end
@@ -368,6 +377,7 @@ RegisterNetEvent('moe-drugsale:client:BeginDelivery', function(loc)
         end
     end)
 end)
+
 
 AddEventHandler('onResourceStop', function(resourceName)
     if resourceName ~= GetCurrentResourceName() then return end
