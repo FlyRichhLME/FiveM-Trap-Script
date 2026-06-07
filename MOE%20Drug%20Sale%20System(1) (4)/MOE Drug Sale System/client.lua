@@ -255,7 +255,7 @@ local function StartTrap(mode)
     end)
 end
 
--- 🔥 NEW: /trap toggle ON/OFF
+-- /trap toggle
 RegisterCommand(Config.Command, function()
     if trapActive then
         trapActive = false
@@ -303,33 +303,42 @@ RegisterNUICallback('checkStatus', function(_, cb)
     end)
 end)
 
+-- Delivery system
 RegisterNetEvent('moe-drugsale:client:BeginDelivery', function(loc)
     currentDelivery = loc
 
+    -- Set waypoint
+    SetNewWaypoint(loc.x, loc.y)
+
+    -- Create blip
     if deliveryBlip then
         RemoveBlip(deliveryBlip)
-        deliveryBlip = nil
     end
 
     deliveryBlip = AddBlipForCoord(loc.x, loc.y, loc.z)
     SetBlipSprite(deliveryBlip, Config.Delivery.blip.sprite)
     SetBlipColour(deliveryBlip, Config.Delivery.blip.color)
     SetBlipScale(deliveryBlip, Config.Delivery.blip.scale)
-    SetBlipAsShortRange(deliveryBlip, false)
     BeginTextCommandSetBlipName("STRING")
     AddTextComponentString(Config.Delivery.blip.label)
     EndTextCommandSetBlipName()
 
     Notify('Delivery location pinged on your GPS.', 'primary')
 
+    -- Spawn delivery NPC
+    local model = 'a_m_m_business_01'
+    local hash = LoadModel(model)
+    local ped = CreatePed(4, hash, loc.x, loc.y, loc.z, 0.0, true, true)
+
+    TaskStartScenarioInPlace(ped, "WORLD_HUMAN_STAND_MOBILE", 0, true)
+
     CreateThread(function()
         while currentDelivery do
             Wait(1000)
-            local ped = PlayerPedId()
-            local coords = GetEntityCoords(ped)
-            local dist = #(coords - vector3(currentDelivery.x, currentDelivery.y, currentDelivery.z))
+            local coords = GetEntityCoords(PlayerPedId())
+            local dist = #(coords - vector3(loc.x, loc.y, loc.z))
 
-            if dist <= 15.0 then
+            if dist <= 5.0 then
                 local success = lib.progressCircle({
                     duration = 8000,
                     label = 'Meeting buyer and completing delivery...',
@@ -347,6 +356,7 @@ RegisterNetEvent('moe-drugsale:client:BeginDelivery', function(loc)
                     Notify('Delivery cancelled.', 'error')
                 end
 
+                DeleteEntity(ped)
                 if deliveryBlip then
                     RemoveBlip(deliveryBlip)
                     deliveryBlip = nil

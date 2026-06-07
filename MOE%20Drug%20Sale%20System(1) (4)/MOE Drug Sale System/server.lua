@@ -42,7 +42,7 @@ local function GetItemLabel(itemName)
     return itemName
 end
 
--- Reputation System
+-- Reputation
 local function GetReputation(Player)
     if not Config.Reputation.enabled then return 0 end
     return Player.PlayerData.metadata["traprep"] or 0
@@ -69,7 +69,7 @@ local function GetRepMultiplier(Player)
     return tierMultiplier
 end
 
--- Price Calculation
+-- Price
 local function GetDrugPrice(Player, itemName, isBulk, isHVB)
     local drugInfo = GetDrugConfig(itemName)
 
@@ -101,7 +101,7 @@ local function GetDrugPrice(Player, itemName, isBulk, isHVB)
     return price
 end
 
--- Item Validation
+-- Item validation
 local function IsSellableItem(item, mode)
     if not item or not item.name or not item.amount or item.amount < 1 then return false end
     if IsBlockedItem(item.name) then return false end
@@ -160,10 +160,7 @@ local function GetBulkSellItems(Player)
     return { items = sellItems, count = totalCount, payout = totalPayout }, totalCount, totalPayout
 end
 
--- Trap Phone Use
-QBCore.Functions.CreateUseableItem(Config.RequiredItem, function(source)
-    TriggerClientEvent('moe-drugsale:client:UseTrapPhone', source)
-end)
+-- Trap phone use (you can remove this if QS auto-uses it)
 
 -- Callbacks
 QBCore.Functions.CreateCallback('moe-drugsale:server:CanOpenPhone', function(source, cb)
@@ -263,7 +260,7 @@ QBCore.Functions.CreateCallback('moe-drugsale:server:CanBulkSell', function(sour
     cb(true)
 end)
 
--- Complete Single Sale
+-- Complete single sale
 RegisterNetEvent('moe-drugsale:server:CompleteSale', function(itemName, isHVB)
     local src = source
     local Player = QBCore.Functions.GetPlayer(src)
@@ -289,4 +286,83 @@ RegisterNetEvent('moe-drugsale:server:CompleteSale', function(itemName, isHVB)
         Player.Functions.AddItem(Config.MarkedBillsItem, 1, false, { worth = payout })
         TriggerClientEvent('inventory:client:ItemBox', src, QBCore.Shared.Items[Config.MarkedBillsItem], 'add')
     else
-        Player.Functions.AddMoney(Config.PayAccount
+        Player.Functions.AddMoney(Config.PayAccount, payout, 'trap-sale')
+    end
+
+    TriggerClientEvent('QBCore:Notify', src, 'You earned $' .. payout .. '.', 'success')
+    AddReputation(Player, Config.Reputation.gainSingle)
+end)
+
+-- Bulk sale completion (if you use it)
+RegisterNetEvent('moe-drugsale:server:CompleteBulkSale', function(isHVB)
+    local src = source
+    local Player = QBCore.Functions.GetPlayer(src)
+    if not Player then return end
+
+    if not trapEnabled then
+        TriggerClientEvent('QBCore:Notify', src, 'Trap sales are turned off.', 'error')
+        return
+    end
+
+    local bulkData, count, payout = GetBulkSellItems(Player)
+    if not bulkData then
+        TriggerClientEvent('QBCore:Notify', src, 'Not enough items for bulk sale.', 'error')
+        return
+    end
+
+    for _, saleItem in pairs(bulkData.items) do
+        Player.Functions.RemoveItem(saleItem.name, saleItem.amount)
+        TriggerClientEvent('inventory:client:ItemBox', src, QBCore.Shared.Items[saleItem.name], 'remove')
+    end
+
+    Player.Functions.AddMoney(Config.PayAccount, payout, 'trap-bulk-sale')
+    TriggerClientEvent('QBCore:Notify', src, 'Bulk sale completed for $' .. payout .. '.', 'success')
+    AddReputation(Player, Config.Reputation.gainBulk)
+end)
+
+-- Delivery system
+RegisterNetEvent('moe-drugsale:server:StartDelivery', function()
+    local src = source
+    local Player = QBCore.Functions.GetPlayer(src)
+
+    if not trapEnabled then
+        TriggerClientEvent('QBCore:Notify', src, 'Trap deliveries are turned off.', 'error')
+        return
+    end
+
+    if not Config.Delivery.enabled then
+        TriggerClientEvent('QBCore:Notify', src, 'Delivery system disabled.', 'error')
+        return
+    end
+
+    local bulkData, count = GetBulkSellItems(Player)
+    if not bulkData then
+        TriggerClientEvent('QBCore:Notify', src, 'Not enough items for delivery.', 'error')
+        return
+    end
+
+    local loc = Config.Delivery.locations[math.random(#Config.Delivery.locations)]
+    TriggerClientEvent('moe-drugsale:client:BeginDelivery', src, loc)
+end)
+
+RegisterNetEvent('moe-drugsale:server:CompleteDelivery', function()
+    local src = source
+    local Player = QBCore.Functions.GetPlayer(src)
+
+    local bulkData = GetBulkSellItems(Player)
+    if not bulkData then
+        TriggerClientEvent('QBCore:Notify', src, 'Not enough items for delivery.', 'error')
+        return
+    end
+
+    for _, saleItem in pairs(bulkData.items) do
+        Player.Functions.RemoveItem(saleItem.name, saleItem.amount)
+        TriggerClientEvent('inventory:client:ItemBox', src, QBCore.Shared.Items[saleItem.name], 'remove')
+    end
+
+    local payout = bulkData.payout
+    Player.Functions.AddMoney(Config.PayAccount, payout, 'trap-delivery')
+
+    TriggerClientEvent('QBCore:Notify', src, 'Delivery completed for $' .. payout .. '.', 'success')
+    AddReputation(Player, Config.Reputation.gainBulk)
+end)
