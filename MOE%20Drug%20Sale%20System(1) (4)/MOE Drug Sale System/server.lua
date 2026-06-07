@@ -42,7 +42,6 @@ local function GetItemLabel(itemName)
     return itemName
 end
 
--- Reputation
 local function GetReputation(Player)
     if not Config.Reputation.enabled then return 0 end
     return Player.PlayerData.metadata["traprep"] or 0
@@ -69,7 +68,6 @@ local function GetRepMultiplier(Player)
     return tierMultiplier
 end
 
--- Price
 local function GetDrugPrice(Player, itemName, isBulk, isHVB)
     local drugInfo = GetDrugConfig(itemName)
 
@@ -101,7 +99,6 @@ local function GetDrugPrice(Player, itemName, isBulk, isHVB)
     return price
 end
 
--- Item validation
 local function IsSellableItem(item, mode)
     if not item or not item.name or not item.amount or item.amount < 1 then return false end
     if IsBlockedItem(item.name) then return false end
@@ -160,9 +157,6 @@ local function GetBulkSellItems(Player)
     return { items = sellItems, count = totalCount, payout = totalPayout }, totalCount, totalPayout
 end
 
--- Trap phone use (you can remove this if QS auto-uses it)
-
--- Callbacks
 QBCore.Functions.CreateCallback('moe-drugsale:server:CanOpenPhone', function(source, cb)
     local Player = QBCore.Functions.GetPlayer(source)
     if not Player then cb(false, 'Player not found.', 'OFFLINE') return end
@@ -260,7 +254,6 @@ QBCore.Functions.CreateCallback('moe-drugsale:server:CanBulkSell', function(sour
     cb(true)
 end)
 
--- Complete single sale
 RegisterNetEvent('moe-drugsale:server:CompleteSale', function(itemName, isHVB)
     local src = source
     local Player = QBCore.Functions.GetPlayer(src)
@@ -293,7 +286,6 @@ RegisterNetEvent('moe-drugsale:server:CompleteSale', function(itemName, isHVB)
     AddReputation(Player, Config.Reputation.gainSingle)
 end)
 
--- Bulk sale completion (if you use it)
 RegisterNetEvent('moe-drugsale:server:CompleteBulkSale', function(isHVB)
     local src = source
     local Player = QBCore.Functions.GetPlayer(src)
@@ -320,7 +312,6 @@ RegisterNetEvent('moe-drugsale:server:CompleteBulkSale', function(isHVB)
     AddReputation(Player, Config.Reputation.gainBulk)
 end)
 
--- Delivery system
 RegisterNetEvent('moe-drugsale:server:StartDelivery', function()
     local src = source
     local Player = QBCore.Functions.GetPlayer(src)

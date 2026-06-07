@@ -65,8 +65,10 @@ local function OpenTrapPhone()
 end
 
 local function CustomerLeave(customerPed, playerVeh)
-    TaskLeaveVehicle(customerPed, playerVeh, 0)
-    Wait(3500)
+    if playerVeh and playerVeh ~= 0 then
+        TaskLeaveVehicle(customerPed, playerVeh, 0)
+        Wait(3500)
+    end
     TaskWanderStandard(customerPed, 10.0, 10)
     SetPedAsNoLongerNeeded(customerPed)
 end
@@ -75,19 +77,25 @@ local function StartDeal(customerPed, playerVeh)
     if saleBusy then return end
     saleBusy = true
 
-    TaskEnterVehicle(customerPed, playerVeh, 10000, 0, 1.0, 1, 0)
+    local onFoot = (playerVeh == nil)
 
-    local timeout = GetGameTimer() + 12000
-    while GetGameTimer() < timeout do
-        Wait(500)
-        if IsPedInVehicle(customerPed, playerVeh, false) then break end
-    end
+    if not onFoot then
+        TaskEnterVehicle(customerPed, playerVeh, 10000, 0, 1.0, 1, 0)
 
-    if not IsPedInVehicle(customerPed, playerVeh, false) then
-        Notify('Customer could not get in the passenger seat.', 'error')
-        CleanupCustomer(customerPed)
-        ResetTrapState()
-        return
+        local timeout = GetGameTimer() + 12000
+        while GetGameTimer() < timeout do
+            Wait(500)
+            if IsPedInVehicle(customerPed, playerVeh, false) then break end
+        end
+
+        if not IsPedInVehicle(customerPed, playerVeh, false) then
+            Notify('Customer could not get in the passenger seat.', 'error')
+            CleanupCustomer(customerPed)
+            ResetTrapState()
+            return
+        end
+    else
+        TaskStandStill(customerPed, 5000)
     end
 
     QBCore.Functions.TriggerCallback('moe-drugsale:server:CheckCustomerInterest', function(isInterested, message, hvbFlag)
@@ -132,6 +140,13 @@ local function StartDeal(customerPed, playerVeh)
                 CustomerLeave(customerPed, playerVeh)
                 currentCustomer = nil
                 saleBusy = false
+
+                CreateThread(function()
+                    Wait(5000)
+                    if trapActive then
+                        SpawnCustomer()
+                    end
+                end)
             end)
             return
         end
@@ -156,7 +171,7 @@ local function StartDeal(customerPed, playerVeh)
 
             if success then
                 TriggerServerEvent('moe-drugsale:server:CompleteSale', drugData.item, isHighValueBuyer)
-                Notify('Customer paid and is getting out.', 'success')
+                Notify('Customer paid and is leaving.', 'success')
             else
                 Notify('Trap sale cancelled.', 'error')
             end
@@ -164,6 +179,13 @@ local function StartDeal(customerPed, playerVeh)
             CustomerLeave(customerPed, playerVeh)
             currentCustomer = nil
             saleBusy = false
+
+            CreateThread(function()
+                Wait(5000)
+                if trapActive then
+                    SpawnCustomer()
+                end
+            end)
         end)
     end, currentMode)
 end
@@ -173,10 +195,20 @@ local function SpawnCustomer()
 
     local playerPed = PlayerPedId()
     local playerVeh = GetVehiclePedIsIn(playerPed, false)
+    local onFoot = (playerVeh == 0)
 
-    if playerVeh == 0 then Notify('You need to be inside your vehicle.', 'error') ResetTrapState() return end
-    if Config.DriverOnly and GetPedInVehicleSeat(playerVeh, -1) ~= playerPed then Notify('You must be the driver.', 'error') ResetTrapState() return end
-    if Config.RequirePassengerSeatOpen and GetPedInVehicleSeat(playerVeh, 0) ~= 0 then Notify('Passenger seat must be empty.', 'error') ResetTrapState() return end
+    if not onFoot then
+        if Config.DriverOnly and GetPedInVehicleSeat(playerVeh, -1) ~= playerPed then 
+            Notify('You must be the driver.', 'error') 
+            ResetTrapState() 
+            return 
+        end
+        if Config.RequirePassengerSeatOpen and GetPedInVehicleSeat(playerVeh, 0) ~= 0 then 
+            Notify('Passenger seat must be empty.', 'error') 
+            ResetTrapState() 
+            return 
+        end
+    end
 
     local coords = GetEntityCoords(playerPed)
     local angle = math.random() * math.pi * 2
@@ -206,22 +238,42 @@ local function SpawnCustomer()
         SetPedFleeAttributes(customerPed, 0, false)
         SetPedCombatAttributes(customerPed, 17, true)
 
-        Notify(currentMode == 'bulk' and 'Bulk buyer is walking to your passenger door.' or 'Customer is walking to your passenger door.', 'success')
-        TaskGoToEntity(customerPed, playerVeh, -1, Config.EnterDistance, 2.0, 1073741824, 0)
+        if onFoot then
+            Notify('Customer is walking to you.', 'success')
+            TaskGoToEntity(customerPed, playerPed, -1, 1.5, 2.0, 1073741824, 0)
+        else
+            Notify('Customer is walking to your passenger door.', 'success')
+            TaskGoToEntity(customerPed, playerVeh, -1, Config.EnterDistance, 2.0, 1073741824, 0)
+        end
 
         CreateThread(function()
             local timeout = GetGameTimer() + Config.CustomerTimeout
             while trapActive and currentCustomer == customerPed and DoesEntityExist(customerPed) do
-                Wait(750)
-                local veh = GetVehiclePedIsIn(PlayerPedId(), false)
+                Wait(500)
 
-                if veh == 0 then Notify('Trap sale cancelled because you left the vehicle.', 'error') CleanupCustomer(customerPed) ResetTrapState() return end
-                if Config.RequirePassengerSeatOpen and GetPedInVehicleSeat(veh, 0) ~= 0 then Notify('Trap sale cancelled because passenger seat is occupied.', 'error') CleanupCustomer(customerPed) ResetTrapState() return end
+                local playerCoords = GetEntityCoords(playerPed)
+                local custCoords = GetEntityCoords(customerPed)
+                local dist = #(custCoords - playerCoords)
 
-                local dist = #(GetEntityCoords(customerPed) - GetEntityCoords(veh))
-                if dist <= Config.EnterDistance then
-                    StartDeal(customerPed, veh)
+                if onFoot and dist <= 2.0 then
+                    StartDeal(customerPed, nil)
                     return
+                end
+
+                if not onFoot then
+                    local veh = GetVehiclePedIsIn(playerPed, false)
+                    if veh == 0 then 
+                        Notify('Trap sale cancelled because you left the vehicle.', 'error') 
+                        CleanupCustomer(customerPed) 
+                        ResetTrapState() 
+                        return 
+                    end
+
+                    local vehDist = #(custCoords - GetEntityCoords(veh))
+                    if vehDist <= Config.EnterDistance then
+                        StartDeal(customerPed, veh)
+                        return
+                    end
                 end
 
                 if GetGameTimer() > timeout then
@@ -248,14 +300,13 @@ local function StartTrap(mode)
     CreateThread(function()
         while trapActive do
             Wait(math.random(Config.CustomerDelay.min, Config.CustomerDelay.max))
-            if trapActive then
+            if trapActive and not saleBusy and not currentCustomer then
                 SpawnCustomer()
             end
         end
     end)
 end
 
--- /trap toggle
 RegisterCommand(Config.Command, function()
     if trapActive then
         trapActive = false
@@ -303,14 +354,11 @@ RegisterNUICallback('checkStatus', function(_, cb)
     end)
 end)
 
--- Delivery system (UPDATED: Player must exit vehicle + NPC interaction)
 RegisterNetEvent('moe-drugsale:client:BeginDelivery', function(loc)
     currentDelivery = loc
 
-    -- Set waypoint
     SetNewWaypoint(loc.x, loc.y)
 
-    -- Create blip
     if deliveryBlip then
         RemoveBlip(deliveryBlip)
     end
@@ -325,7 +373,6 @@ RegisterNetEvent('moe-drugsale:client:BeginDelivery', function(loc)
 
     Notify('Drive to the delivery location.', 'primary')
 
-    -- Spawn delivery NPC
     local model = 'a_m_m_business_01'
     local hash = LoadModel(model)
     local ped = CreatePed(4, hash, loc.x, loc.y, loc.z, 0.0, true, true)
@@ -340,14 +387,11 @@ RegisterNetEvent('moe-drugsale:client:BeginDelivery', function(loc)
             local coords = GetEntityCoords(playerPed)
             local dist = #(coords - vector3(loc.x, loc.y, loc.z))
 
-            -- Must exit vehicle
             if dist <= 20.0 and IsPedInAnyVehicle(playerPed, false) then
                 Notify('Exit your vehicle to complete the delivery.', 'error')
             end
 
-            -- Player must be on foot and close to NPC
             if dist <= 3.0 and not IsPedInAnyVehicle(playerPed, false) then
-
                 local success = lib.progressCircle({
                     duration = 8000,
                     label = 'Handing off bulk package...',
@@ -377,7 +421,6 @@ RegisterNetEvent('moe-drugsale:client:BeginDelivery', function(loc)
         end
     end)
 end)
-
 
 AddEventHandler('onResourceStop', function(resourceName)
     if resourceName ~= GetCurrentResourceName() then return end
