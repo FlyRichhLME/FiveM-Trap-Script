@@ -1,1 +1,83 @@
-const phone=document.getElementById('phone');const statusText=document.getElementById('status');const timeText=document.getElementById('time');const callBtn=document.getElementById('callBtn');const bulkBtn=document.getElementById('bulkBtn');const closeBtn=document.getElementById('closeBtn');const statusBtn=document.getElementById('statusBtn');function nuiPost(name,data={}){fetch(`https://${GetParentResourceName()}/${name}`,{method:'POST',headers:{'Content-Type':'application/json; charset=UTF-8'},body:JSON.stringify(data)})}function updateTime(){const now=new Date();let h=now.getHours();let m=now.getMinutes();if(h<10)h='0'+h;if(m<10)m='0'+m;timeText.innerText=`${h}:${m}`}setInterval(updateTime,1000);updateTime();window.addEventListener('message',(event)=>{const data=event.data;if(data.action==='open'){phone.classList.remove('hidden');statusText.innerText=data.status||'READY';bulkBtn.style.display=data.bulkEnabled===false?'none':'block'}if(data.action==='close'){phone.classList.add('hidden')}});callBtn.addEventListener('click',()=>{statusText.innerText='CALLING...';nuiPost('callCustomer')});bulkBtn.addEventListener('click',()=>{statusText.innerText='BULK CALL...';nuiPost('bulkDelivery')});closeBtn.addEventListener('click',()=>{nuiPost('closePhone')});statusBtn.addEventListener('click',()=>{fetch(`https://${GetParentResourceName()}/checkStatus`,{method:'POST',headers:{'Content-Type':'application/json; charset=UTF-8'},body:JSON.stringify({})}).then(resp=>resp.json()).then(data=>{statusText.innerText=data.label||'UNKNOWN'})});document.addEventListener('keyup',(e)=>{if(e.key==='Escape'){nuiPost('closePhone')}});
+let bulkEnabled = false;
+let deliveryEnabled = false;
+
+window.addEventListener('message', (event) => {
+    const data = event.data;
+    if (!data || !data.action) return;
+
+    if (data.action === 'open') {
+        document.getElementById('trap-phone').style.display = 'block';
+        document.getElementById('status-label').innerText = `STATUS: ${data.status || 'READY'}`;
+        bulkEnabled = !!data.bulkEnabled;
+        deliveryEnabled = !!data.deliveryEnabled;
+
+        logMessage(`Trap phone ready. Use ${data.command || '/trap'} or buttons.`);
+        updateButtons();
+    }
+
+    if (data.action === 'close') {
+        document.getElementById('trap-phone').style.display = 'none';
+    }
+
+    if (data.action === 'statusUpdate') {
+        document.getElementById('status-label').innerText = `STATUS: ${data.status || 'READY'}`;
+    }
+
+    if (data.action === 'repUpdate') {
+        document.getElementById('rep-label').innerText = `REP: ${data.repLabel || 'Unknown'} (${data.repValue || 0})`;
+    }
+
+    if (data.action === 'log') {
+        logMessage(data.message || '');
+    }
+});
+
+function updateButtons() {
+    document.getElementById('btn-bulk').style.display = bulkEnabled ? 'inline-block' : 'none';
+    document.getElementById('btn-delivery').style.display = deliveryEnabled ? 'inline-block' : 'none';
+}
+
+function logMessage(msg) {
+    if (!msg) return;
+    const log = document.getElementById('log');
+    const line = document.createElement('div');
+    line.textContent = msg;
+    log.appendChild(line);
+    log.scrollTop = log.scrollHeight;
+}
+
+document.getElementById('btn-close').addEventListener('click', () => {
+    fetch(`https://${GetParentResourceName()}/closePhone`, {
+        method: 'POST',
+        body: JSON.stringify({})
+    });
+});
+
+document.getElementById('btn-call').addEventListener('click', () => {
+    fetch(`https://${GetParentResourceName()}/callCustomer`, {
+        method: 'POST',
+        body: JSON.stringify({})
+    });
+});
+
+document.getElementById('btn-bulk').addEventListener('click', () => {
+    if (!bulkEnabled) {
+        logMessage('Bulk delivery is disabled.');
+        return;
+    }
+    fetch(`https://${GetParentResourceName()}/bulkDelivery`, {
+        method: 'POST',
+        body: JSON.stringify({})
+    });
+});
+
+document.getElementById('btn-delivery').addEventListener('click', () => {
+    if (!deliveryEnabled) {
+        logMessage('Delivery system is disabled.');
+        return;
+    }
+    fetch(`https://${GetParentResourceName()}/startDelivery`, {
+        method: 'POST',
+        body: JSON.stringify({})
+    });
+});

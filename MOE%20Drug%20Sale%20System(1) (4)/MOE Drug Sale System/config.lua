@@ -8,11 +8,7 @@ Config.UsePhoneUI = true
 Config.DriverOnly = true
 Config.RequirePassengerSeatOpen = true
 
-Config.CustomerDelay = {
-    min = 6000,
-    max = 12000
-}
-
+Config.CustomerDelay = { min = 6000, max = 12000 }
 Config.EnterDistance = 8.0
 Config.SpawnDistance = 35.0
 Config.CustomerTimeout = 45000
@@ -25,10 +21,8 @@ Config.PayAccount = 'cash'
 Config.UseMarkedBills = false
 Config.MarkedBillsItem = 'markedbills'
 
--- No NPC robbing.
-Config.AllowNpcRobbing = false
+Config.AllowNpcRobbing = true
 
--- Customer interest system.
 Config.CustomerInterest = {
     enabled = true,
     buyChance = 75,
@@ -36,7 +30,6 @@ Config.CustomerInterest = {
     notInterestedMessage = 'Customer is not interested in what you have.'
 }
 
--- Bulk delivery through prepaid phone NUI.
 Config.BulkDelivery = {
     enabled = true,
     minItems = 5,
@@ -48,14 +41,54 @@ Config.BulkDelivery = {
     useInterestChance = true
 }
 
--- CUSTOM DRUG SYSTEM
--- Add any drug item from your qb-core/shared/items.lua here.
--- item = inventory item name
--- label = display name
--- min/max = single sale payout range
--- bulkMultiplier = extra multiplier for this specific item during bulk sales
--- allowSingle = can sell with CALL CUSTOMER
--- allowBulk = can sell with BULK DELIVERY
+Config.Reputation = {
+    enabled = true,
+    max = 1000,
+    gainSingle = 5,
+    gainBulk = 20,
+    lossRobbery = 25,
+    tiers = {
+        { level = 0,   label = "Rookie",             multiplier = 1.0 },
+        { level = 200, label = "Local Plug",         multiplier = 1.1 },
+        { level = 500, label = "Trusted Supplier",   multiplier = 1.25 },
+        { level = 800, label = "Neighborhood Boss",  multiplier = 1.4 },
+        { level = 1000,label = "Trap King",          multiplier = 1.6 }
+    }
+}
+
+Config.HighValueBuyers = {
+    enabled = true,
+    chance = 5,
+    minRep = 300,
+    payoutMultiplier = { min = 2.0, max = 4.0 },
+    pedModels = {
+        "g_m_m_chicold_01",
+        "g_m_m_armboss_01",
+        "g_m_m_mexboss_02"
+    }
+}
+
+Config.Robbery = {
+    enabled = true,
+    chance = 10,
+    minRepToAvoid = 400
+}
+
+Config.Delivery = {
+    enabled = true,
+    locations = {
+        vector3(123.4, -321.5, 43.2),
+        vector3(-456.2, 234.1, 35.1),
+        vector3(812.3, -1124.5, 28.1)
+    },
+    blip = {
+        sprite = 514,
+        color = 2,
+        scale = 0.9,
+        label = "Trap Delivery"
+    }
+}
+
 Config.CustomDrugs = {
     ['weed_bag'] = {
         label = 'Weed Bag',
@@ -65,7 +98,6 @@ Config.CustomDrugs = {
         allowSingle = true,
         allowBulk = true
     },
-
     ['cokebaggy'] = {
         label = 'Coke Baggy',
         min = 350,
@@ -74,7 +106,6 @@ Config.CustomDrugs = {
         allowSingle = true,
         allowBulk = true
     },
-
     ['meth'] = {
         label = 'Meth',
         min = 450,
@@ -83,31 +114,16 @@ Config.CustomDrugs = {
         allowSingle = true,
         allowBulk = true
     },
-
-    -- Example custom drug:
-    -- ['lean_bottle'] = {
-    --     label = 'Lean Bottle',
-    --     min = 500,
-    --     max = 950,
-    --     bulkMultiplier = 1.25,
-    --     allowSingle = true,
-    --     allowBulk = true
-    -- },
 }
 
--- If true, the system can sell any inventory item that is not blocked.
--- Recommended: false for serious RP economy control.
--- If false, only Config.CustomDrugs can be sold.
 Config.AllowAnyDrugItem = false
 
--- Used only when Config.AllowAnyDrugItem = true.
 Config.DefaultDrugPrice = {
     min = 125,
     max = 700,
     bulkMultiplier = 1.0
 }
 
--- Items that should never be sold when AllowAnyDrugItem is true.
 Config.BlockedItems = {
     ['trapphone'] = true,
     ['phone'] = true,
@@ -120,17 +136,9 @@ Config.BlockedItems = {
 }
 
 Config.Owners = {
-    citizenids = {
-        -- 'YOUR_CITIZEN_ID'
-    },
-
-    jobs = {
-        -- 'boss'
-    },
-
-    gangs = {
-        -- 'ballas'
-    }
+    citizenids = {},
+    jobs = {},
+    gangs = {}
 }
 
 Config.CustomerPeds = {

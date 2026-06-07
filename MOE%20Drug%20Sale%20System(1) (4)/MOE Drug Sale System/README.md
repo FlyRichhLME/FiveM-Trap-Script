@@ -1,122 +1,70 @@
-# MOE Drug Sale System
+# 📱 MOE Trap Phone System
+### Advanced QB-Core Drug Sales • Reputation • High-Value Buyers • Delivery Missions • NUI Phone
 
-QBCore FiveM drug sale system with prepaid phone UI, custom drugs, customer interest, NPC passenger-seat sales, bulk delivery, and owner on/off controls.
+The **MOE Trap Phone System** is a complete, immersive drug-dealing framework for **QB-Core** servers.  
+It introduces a dynamic criminal economy with:
 
-## Features
+- Trap phone UI  
+- Customer calls  
+- Bulk deliveries  
+- GPS drop-offs  
+- Reputation progression  
+- High-value buyers  
+- Random events  
+- Clean animations  
+- Anti-exploit logic  
+- Custom drug support  
 
-- QBCore ready
-- `/trap` opens prepaid phone UI
-- Usable `trapphone` item opens prepaid phone UI
-- Custom drug list in `config.lua`
-- Single customer sale
-- Bulk drug delivery sale
-- Bulk delivery double payout
-- Per-drug bulk multiplier support
-- Customer interest / no-interest chance
-- Optional sell-any-item mode
-- NPC enters and exits passenger seat
-- ox_lib progress circle animation
-- Player receives cash or marked bills
-- No NPC robbing
-- Owner on/off switch
+This is a **production-ready**, optimized, expandable system designed for serious RP servers.
 
-## Installation
+---
 
-1. Place `MOE Drug Sale System` inside your resources folder.
-2. Add this to `server.cfg`:
+## ✨ Features
 
-```cfg
-ensure ox_lib
-ensure "MOE Drug Sale System"
-```
+### 📱 Trap Phone UI
+- Clean NUI interface  
+- Call customers  
+- Request bulk buyers  
+- Start delivery missions  
+- Status + logs  
+- Reputation display  
 
-3. Add this item to `qb-core/shared/items.lua`:
+### 🚗 Street Sales
+- NPC customers walk to your car  
+- Enter passenger seat  
+- Progress animations  
+- Random interest chance  
+- High-value buyers  
+- Robbery chance (optional)  
 
-```lua
-['trapphone'] = {
-    ['name'] = 'trapphone',
-    ['label'] = 'Trap Phone',
-    ['weight'] = 100,
-    ['type'] = 'item',
-    ['image'] = 'phone.png',
-    ['unique'] = true,
-    ['useable'] = true,
-    ['shouldClose'] = true,
-    ['combinable'] = nil,
-    ['description'] = 'Used to contact trap customers'
-},
-```
+### 📦 Bulk Deliveries
+- Requires minimum drug quantity  
+- High payouts  
+- Progress animations  
+- Cooldowns  
+- Reputation gains  
 
-## Add Custom Drugs
+### 📍 Delivery Missions
+- Random GPS drop-off points  
+- Map blip + route  
+- Meet buyer at location  
+- Clean handoff animation  
+- Full payout + rep gain  
 
-Add custom drugs in `config.lua` under `Config.CustomDrugs`.
+### ⭐ Reputation System
+- Gain rep from sales  
+- Lose rep from robberies  
+- Unlock higher tiers  
+- Tier multipliers increase payouts  
+- Required for high-value buyers  
 
-Example:
+### 💰 High-Value Buyers
+- Rare chance  
+- Special ped models  
+- 2x–4x payout multipliers  
+- Guaranteed interest  
+- Rep-locked  
 
-```lua
-['lean_bottle'] = {
-    label = 'Lean Bottle',
-    min = 500,
-    max = 950,
-    bulkMultiplier = 1.25,
-    allowSingle = true,
-    allowBulk = true
-},
-```
+### 🧪 Custom Drug Support
+Server owners can add new drugs **in-game**:
 
-The item name must match the item in `qb-core/shared/items.lua`.
-
-## Sell Any Drug Item
-
-By default, only drugs listed in `Config.CustomDrugs` can sell:
-
-```lua
-Config.AllowAnyDrugItem = false
-```
-
-Set it to true to allow any inventory item except blocked items:
-
-```lua
-Config.AllowAnyDrugItem = true
-```
-
-Block items here:
-
-```lua
-Config.BlockedItems = {
-    ['trapphone'] = true,
-    ['phone'] = true,
-    ['radio'] = true
-}
-```
-
-## Commands
-
-```txt
-/trap
-/trapstatus on
-/trapstatus off
-/trapstatus status
-```
-
-## Owner Setup
-
-Edit `config.lua`:
-
-```lua
-Config.Owners = {
-    citizenids = {
-        'YOUR_CITIZEN_ID'
-    },
-
-    jobs = {
-        'boss'
-    },
-
-    gangs = {
-        'ballas'
-    }
-}
-```
-
-QBCore admins can also use `/trapstatus`.

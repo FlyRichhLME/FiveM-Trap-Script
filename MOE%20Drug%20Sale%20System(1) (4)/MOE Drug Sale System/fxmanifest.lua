@@ -2,8 +2,8 @@ fx_version 'cerulean'
 game 'gta5'
 
 author 'MOE Studios'
-description 'QBCore Drug Sale System with Prepaid Phone UI, Custom Drugs, Customer Interest, and Bulk Delivery'
-version '1.5.0'
+description 'QBCore Trap Phone Drug Sale & Delivery System with Reputation, HV Buyers, and NUI'
+version '2.0.0'
 
 lua54 'yes'
 

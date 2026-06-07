@@ -5,6 +5,9 @@ local saleBusy = false
 local currentCustomer = nil
 local phoneOpen = false
 local currentMode = 'single'
+local currentDelivery = nil
+local deliveryBlip = nil
+local isHighValueBuyer = false
 
 local function Notify(msg, msgType)
     QBCore.Functions.Notify(msg, msgType or 'primary')
@@ -30,6 +33,7 @@ local function ResetTrapState()
     saleBusy = false
     trapActive = false
     currentMode = 'single'
+    isHighValueBuyer = false
 end
 
 local function CloseTrapPhone()
@@ -54,7 +58,8 @@ local function OpenTrapPhone()
             action = 'open',
             status = status or 'READY',
             command = '/' .. Config.Command,
-            bulkEnabled = Config.BulkDelivery.enabled
+            bulkEnabled = Config.BulkDelivery.enabled,
+            deliveryEnabled = Config.Delivery.enabled
         })
     end)
 end
@@ -85,7 +90,9 @@ local function StartDeal(customerPed, playerVeh)
         return
     end
 
-    QBCore.Functions.TriggerCallback('moe-drugsale:server:CheckCustomerInterest', function(isInterested, message)
+    QBCore.Functions.TriggerCallback('moe-drugsale:server:CheckCustomerInterest', function(isInterested, message, hvbFlag)
+        isHighValueBuyer = hvbFlag or false
+
         if not isInterested then
             Notify(message or Config.CustomerInterest.notInterestedMessage, 'error')
             CustomerLeave(customerPed, playerVeh)
@@ -120,8 +127,8 @@ local function StartDeal(customerPed, playerVeh)
                 })
 
                 if success then
-                    TriggerServerEvent('moe-drugsale:server:CompleteBulkSale')
-                    Notify('Bulk delivery completed. Double payout received.', 'success')
+                    TriggerServerEvent('moe-drugsale:server:CompleteBulkSale', isHighValueBuyer)
+                    Notify('Bulk delivery completed.', 'success')
                 else
                     Notify('Bulk delivery cancelled.', 'error')
                 end
@@ -156,7 +163,7 @@ local function StartDeal(customerPed, playerVeh)
             })
 
             if success then
-                TriggerServerEvent('moe-drugsale:server:CompleteSale', drugData.item)
+                TriggerServerEvent('moe-drugsale:server:CompleteSale', drugData.item, isHighValueBuyer)
                 Notify('Customer paid and is getting out.', 'success')
             else
                 Notify('Trap sale cancelled.', 'error')
@@ -188,39 +195,53 @@ local function SpawnCustomer()
     local foundGround, groundZ = GetGroundZFor_3dCoord(spawn.x, spawn.y, spawn.z + 50.0, false)
     if foundGround then spawn = vector3(spawn.x, spawn.y, groundZ) end
 
-    local model = Config.CustomerPeds[math.random(#Config.CustomerPeds)]
-    local hash = LoadModel(model)
-    local customerPed = CreatePed(4, hash, spawn.x, spawn.y, spawn.z, 0.0, true, true)
-    currentCustomer = customerPed
+    local model
+    isHighValueBuyer = false
 
-    SetEntityAsMissionEntity(customerPed, true, true)
-    SetBlockingOfNonTemporaryEvents(customerPed, true)
-    SetPedCanRagdoll(customerPed, false)
-    SetPedFleeAttributes(customerPed, 0, false)
-    SetPedCombatAttributes(customerPed, 17, true)
-
-    Notify(currentMode == 'bulk' and 'Bulk buyer is walking to your passenger door.' or 'Customer is walking to your passenger door.', 'success')
-    TaskGoToEntity(customerPed, playerVeh, -1, Config.EnterDistance, 2.0, 1073741824, 0)
-
-    CreateThread(function()
-        local timeout = GetGameTimer() + Config.CustomerTimeout
-        while trapActive and currentCustomer == customerPed and DoesEntityExist(customerPed) do
-            Wait(750)
-            local veh = GetVehiclePedIsIn(PlayerPedId(), false)
-
-            if veh == 0 then Notify('Trap sale cancelled because you left the vehicle.', 'error') CleanupCustomer(customerPed) ResetTrapState() return end
-            if Config.RequirePassengerSeatOpen and GetPedInVehicleSeat(veh, 0) ~= 0 then Notify('Trap sale cancelled because passenger seat is occupied.', 'error') CleanupCustomer(customerPed) ResetTrapState() return end
-
-            local dist = #(GetEntityCoords(customerPed) - GetEntityCoords(veh))
-            if dist <= Config.EnterDistance then StartDeal(customerPed, veh) return end
-
-            if GetGameTimer() > timeout then
-                Notify('Customer could not find you.', 'error')
-                CleanupCustomer(customerPed)
-                ResetTrapState()
-                return
-            end
+    QBCore.Functions.TriggerCallback('moe-drugsale:server:GetBuyerType', function(hvb, hvbModel)
+        if hvb and hvbModel then
+            isHighValueBuyer = true
+            model = hvbModel
+        else
+            model = Config.CustomerPeds[math.random(#Config.CustomerPeds)]
         end
+
+        local hash = LoadModel(model)
+        local customerPed = CreatePed(4, hash, spawn.x, spawn.y, spawn.z, 0.0, true, true)
+        currentCustomer = customerPed
+
+        SetEntityAsMissionEntity(customerPed, true, true)
+        SetBlockingOfNonTemporaryEvents(customerPed, true)
+        SetPedCanRagdoll(customerPed, false)
+        SetPedFleeAttributes(customerPed, 0, false)
+        SetPedCombatAttributes(customerPed, 17, true)
+
+        Notify(currentMode == 'bulk' and 'Bulk buyer is walking to your passenger door.' or 'Customer is walking to your passenger door.', 'success')
+        TaskGoToEntity(customerPed, playerVeh, -1, Config.EnterDistance, 2.0, 1073741824, 0)
+
+        CreateThread(function()
+            local timeout = GetGameTimer() + Config.CustomerTimeout
+            while trapActive and currentCustomer == customerPed and DoesEntityExist(customerPed) do
+                Wait(750)
+                local veh = GetVehiclePedIsIn(PlayerPedId(), false)
+
+                if veh == 0 then Notify('Trap sale cancelled because you left the vehicle.', 'error') CleanupCustomer(customerPed) ResetTrapState() return end
+                if Config.RequirePassengerSeatOpen and GetPedInVehicleSeat(veh, 0) ~= 0 then Notify('Trap sale cancelled because passenger seat is occupied.', 'error') CleanupCustomer(customerPed) ResetTrapState() return end
+
+                local dist = #(GetEntityCoords(customerPed) - GetEntityCoords(veh))
+                if dist <= Config.EnterDistance then
+                    StartDeal(customerPed, veh)
+                    return
+                end
+
+                if GetGameTimer() > timeout then
+                    Notify('Customer could not find you.', 'error')
+                    CleanupCustomer(customerPed)
+                    ResetTrapState()
+                    return
+                end
+            end
+        end)
     end)
 end
 
@@ -275,9 +296,70 @@ RegisterNUICallback('bulkDelivery', function(_, cb)
     cb('ok')
 end)
 
+RegisterNUICallback('startDelivery', function(_, cb)
+    TriggerServerEvent('moe-drugsale:server:StartDelivery')
+    cb('ok')
+end)
+
 RegisterNUICallback('checkStatus', function(_, cb)
     QBCore.Functions.TriggerCallback('moe-drugsale:server:GetTrapStatus', function(status)
         cb(status)
+    end)
+end)
+
+RegisterNetEvent('moe-drugsale:client:BeginDelivery', function(loc)
+    currentDelivery = loc
+
+    if deliveryBlip then
+        RemoveBlip(deliveryBlip)
+        deliveryBlip = nil
+    end
+
+    deliveryBlip = AddBlipForCoord(loc.x, loc.y, loc.z)
+    SetBlipSprite(deliveryBlip, Config.Delivery.blip.sprite)
+    SetBlipColour(deliveryBlip, Config.Delivery.blip.color)
+    SetBlipScale(deliveryBlip, Config.Delivery.blip.scale)
+    SetBlipAsShortRange(deliveryBlip, false)
+    BeginTextCommandSetBlipName("STRING")
+    AddTextComponentString(Config.Delivery.blip.label)
+    EndTextCommandSetBlipName()
+
+    Notify('Delivery location pinged on your GPS.', 'primary')
+
+    CreateThread(function()
+        while currentDelivery do
+            Wait(1000)
+            local ped = PlayerPedId()
+            local coords = GetEntityCoords(ped)
+            local dist = #(coords - vector3(currentDelivery.x, currentDelivery.y, currentDelivery.z))
+
+            if dist <= 15.0 then
+                local success = lib.progressCircle({
+                    duration = 8000,
+                    label = 'Meeting buyer and completing delivery...',
+                    position = 'bottom',
+                    useWhileDead = false,
+                    canCancel = false,
+                    disable = { move = false, car = true, combat = true },
+                    anim = { dict = 'mp_common', clip = 'givetake1_a' }
+                })
+
+                if success then
+                    TriggerServerEvent('moe-drugsale:server:CompleteDelivery')
+                    Notify('Delivery completed.', 'success')
+                else
+                    Notify('Delivery cancelled.', 'error')
+                end
+
+                if deliveryBlip then
+                    RemoveBlip(deliveryBlip)
+                    deliveryBlip = nil
+                end
+
+                currentDelivery = nil
+                break
+            end
+        end
     end)
 end)
 
@@ -285,4 +367,5 @@ AddEventHandler('onResourceStop', function(resourceName)
     if resourceName ~= GetCurrentResourceName() then return end
     SetNuiFocus(false, false)
     if currentCustomer and DoesEntityExist(currentCustomer) then DeleteEntity(currentCustomer) end
+    if deliveryBlip then RemoveBlip(deliveryBlip) end
 end)
